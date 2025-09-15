@@ -84,7 +84,8 @@ We want to hear from you — **help us build this community-driven initiative th
 
 ✨ **Join us today. Together, we rise.**
 
-# LOCKSTAR Guidelines
+---
+
 # LOCK STAR Rules and Guidelines
 
 The **LOCK STAR** framework recognises contributors who set themselves apart through high-quality, responsible, and educational content. Unlike traditional conference talks or blog posts, LOCK STAR contributions are expected to be **detailed to the point of being training material** — guiding others through the process, not just showcasing outcomes.
