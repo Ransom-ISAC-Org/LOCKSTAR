@@ -23,7 +23,7 @@ Introducing **Ransom-ISAC’s L.O.C.K. S.T.A.R.:**
   <img 
     src="https://github.com/user-attachments/assets/54a3dcec-e862-408f-a43a-0459b79197ec" 
     alt="Ransom-ISAC LOCKSTAR" 
-    width="600">
+    width="500">
 </div>
 
 
