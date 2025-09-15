@@ -69,7 +69,7 @@ A **L.O.C.K. S.T.A.R.** can be earned in any of these domains:
 
 - 🏗️ **Infrastructure**  
 - 💬 **Negotiations**  
-- 🕵️ **HUMINT**  
+- 🕵️ **HUMINT and OSINT**  
 - 💰 **Cryptocurrency**  
 - 🧭 **DFIR**  
 - 🔬 **Reverse Engineering**  
