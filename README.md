@@ -20,8 +20,12 @@ Introducing **Ransom-ISAC’s L.O.C.K. S.T.A.R.:**
 **Level of Critical Knowledge in Specialized Techniques on Advancements and Research**
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/54a3dcec-e862-408f-a43a-0459b79197ec" alt="Ransom-ISAC LOCKSTAR">
+  <img 
+    src="https://github.com/user-attachments/assets/54a3dcec-e862-408f-a43a-0459b79197ec" 
+    alt="Ransom-ISAC LOCKSTAR" 
+    width="800">
 </div>
+
 
 This framework allows individuals—and their organizations—to gain formal recognition as some of the world’s leading subject-matter experts.
 
