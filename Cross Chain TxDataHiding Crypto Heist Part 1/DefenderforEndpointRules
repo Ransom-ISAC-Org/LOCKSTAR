@@ -1,0 +1,307 @@
+This campaign is extremely sophisticated. We have as such bulit rules (and tested these) for the specific campaigns.
+
+```jsx
+// ============================================================================
+// MDE Threat Hunt: NPM Supply Chain Malware (Multi-Stage RAT)
+// IOCs: C2 servers, file paths, process patterns, network connections
+// ============================================================================
+
+// =========================
+// 1. C2 Network Connections
+// =========================
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemoteIP in (
+    "136.0.9.8",
+    "23.27.202.27", 
+    "166.88.4.2",
+    "23.27.20.143"
+)
+or RemoteUrl contains "136.0.9.8"
+or RemoteUrl contains "23.27.202.27"
+or RemoteUrl contains "166.88.4.2"
+or RemoteUrl contains "23.27.20.143"
+| where RemotePort in (27017, 443)
+| project Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, 
+          RemoteIP, RemotePort, RemoteUrl, ActionType
+| order by Timestamp desc
+
+// =========================
+// 2. Suspicious File Modifications (VSCode/Cursor Injection)
+// =========================
+union
+(
+    // Windows VSCode injection
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where FolderPath has_any (
+        @"\AppData\Local\Programs\Microsoft VS Code\resources\app\node_modules\@vscode\deviceid\dist\index.js",
+        @"\AppData\Local\Programs\cursor\resources\app\node_modules\@vscode\deviceid\dist\index.js"
+    )
+    | where ActionType in ("FileModified", "FileCreated")
+),
+(
+    // macOS VSCode injection
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where FolderPath has_any (
+        "/Applications/Visual Studio Code.app/Contents/Resources/app/node_modules/@vscode/deviceid/dist/index.js",
+        "/Applications/Cursor.app/Contents/Resources/app/node_modules/@vscode/deviceid/dist/index.js"
+    )
+    | where ActionType in ("FileModified", "FileCreated")
+),
+(
+    // Linux VSCode injection
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where FolderPath has_any (
+        "/usr/share/code/resources/app/node_modules/@vscode/deviceid/dist/index.js",
+        "/usr/share/cursor/resources/app/node_modules/@vscode/deviceid/dist/index.js"
+    )
+    | where ActionType in ("FileModified", "FileCreated")
+)
+| project Timestamp, DeviceName, FolderPath, FileName, InitiatingProcessFileName, 
+          InitiatingProcessCommandLine, SHA256, ActionType
+| order by Timestamp desc
+
+// =========================
+// 3. Malicious File Creation (.node_modules in home directory) ((WARNING HIGH FALSE POSITIVE RATE))
+// =========================
+DeviceFileEvents
+| where Timestamp > ago(30d)
+| where FolderPath contains ".node_modules"
+| where FolderPath has_any (
+    @"\Users\",
+    "/home/",
+    @"\AppData\Local\Temp\"
+)
+| where FileName has_any ("axios", "socket.io-client", "python.zip", "python.7z", "7zr.exe")
+   or FolderPath contains @"\.node_modules\node_modules\"
+| project Timestamp, DeviceName, FolderPath, FileName, InitiatingProcessFileName,
+          InitiatingProcessCommandLine, SHA256, ActionType
+| order by Timestamp desc
+
+// =========================
+// 4. Suspicious Process Execution Patterns
+// =========================
+DeviceProcessEvents
+| where Timestamp > ago(30d)
+| where ProcessCommandLine has_any (
+    "global['_V']",
+    "global['_H']",
+    "global['r']=require",
+    "global['m']=module",
+    "9KyASt+7D0mjPHFY",  // XOR key
+    "ThZG+0jfXE",         // Decryption key fragment
+    "verify-human",
+    "/$/boot",
+    "/$/z1",
+    "/*C250617A*/",
+    "/*C250618A*/"
+)
+or ProcessCommandLine matches regex @"npm.*install.*axios.*socket\.io-client"
+or ProcessCommandLine matches regex @"python.*-c.*urlopen.*Request"
+or (FileName in ("node.exe", "node") and ProcessCommandLine contains "detached")
+| project Timestamp, DeviceName, FileName, ProcessCommandLine, 
+          InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName
+| order by Timestamp desc
+
+// =========================
+// 5. Python Downloader Detection
+// =========================
+DeviceProcessEvents
+| where Timestamp > ago(30d)
+| where (FileName in~ ("python.exe", "python3", "py.exe", "python") or ProcessCommandLine has "python")
+| where ProcessCommandLine has_any (
+    "urllib.request",
+    "urlopen",
+    "base64.b64decode",
+    "9KyASt+7D0mjPHFY",
+    "subprocess.CREATE_NO_WINDOW",
+    "os.setsid"
+)
+and ProcessCommandLine contains "-c"
+| project Timestamp, DeviceName, FileName, ProcessCommandLine,
+          InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName
+| order by Timestamp desc
+
+// =========================
+// 6. Suspicious npm Install Operations
+// =========================
+DeviceProcessEvents
+| where Timestamp > ago(30d)
+| where FileName in~ ("npm", "npm.cmd", "npm.exe")
+| where ProcessCommandLine has_all ("--prefix", ".node_modules", "install")
+| where ProcessCommandLine has_any ("axios", "socket.io-client")
+| project Timestamp, DeviceName, ProcessCommandLine, FolderPath,
+          InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName
+| order by Timestamp desc
+
+// =========================
+// 7. Socket.IO C2 Connection Patterns
+// =========================
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemotePort in (443, 27017)
+| where InitiatingProcessCommandLine has_any (
+    "socket.io-client",
+    "reconnectionDelay",
+    "identify",
+    "clientUuid"
+)
+or RemoteUrl contains "socket.io"
+| project Timestamp, DeviceName, RemoteIP, RemotePort, RemoteUrl,
+          InitiatingProcessFileName, InitiatingProcessCommandLine, ActionType
+| order by Timestamp desc
+
+// =========================
+// 8. File Upload Activity (RAT exfiltration)
+// =========================
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemotePort == 27017
+| where RemoteUrl contains "/u/f"
+| project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName,
+          InitiatingProcessCommandLine, ActionType, RemotePo...
+| order by Timestamp desc
+
+// =========================
+// 9. Environment Variable Exfiltration (POST to /snv)
+// =========================
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemotePort == 27017
+| where RemoteUrl has_any ("/snv", "/verify-human")
+| project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName,
+          InitiatingProcessCommandLine, ActionType
+| order by Timestamp desc
+
+// =========================
+// 10. Python Installation from Malicious Source
+// =========================
+union
+(
+    DeviceNetworkEvents
+    | where Timestamp > ago(30d)
+    | where RemoteUrl has_any ("/d/python.zip", "/d/python.7z", "/d/7zr.exe")
+    | where RemoteIP in ("136.0.9.8", "23.27.202.27", "166.88.4.2", "23.27.20.143")
+),
+(
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where FolderPath has @"\Programs\Python\Python3127\"
+    | where FileName in~ ("python.zip", "python.7z", "7zr.exe", "python.exe")
+)
+| project Timestamp, DeviceName, FolderPath, FileName, RemoteIP, RemoteUrl,
+          InitiatingProcessFileName, InitiatingProcessCommandLine
+| order by Timestamp desc
+
+// =========================
+// 11. Malicious Registry/Persistence Indicators
+// =========================
+DeviceRegistryEvents
+| where Timestamp > ago(30d)
+| where RegistryKey has_any (
+    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+    @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+)
+| where RegistryValueData has_any (
+    ".node_modules",
+    "global['_V']",
+    "socket.io-client",
+    "axios"
+)
+| project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData,
+          InitiatingProcessFileName, InitiatingProcessCommandLine
+| order by Timestamp desc
+
+// =========================
+// 12. Comprehensive Indicator Hunt (UNION ALL)
+// =========================
+let C2_IPs = dynamic(["136.0.9.8", "23.27.202.27", "166.88.4.2", "23.27.20.143"]);
+let C2_Ports = dynamic([27017, 443]);
+let MaliciousStrings = dynamic([
+    "global['_V']", "global['_H']", "9KyASt+7D0mjPHFY", 
+    "verify-human", "/$/boot", "/$/z1", "/*C250617A*/", "/*C250618A*/"
+]);
+
+union
+(
+    DeviceNetworkEvents
+    | where Timestamp > ago(30d)
+    | where RemoteIP in (C2_IPs) or RemotePort in (C2_Ports)
+    | extend EventType = "Network"
+),
+(
+    DeviceProcessEvents
+    | where Timestamp > ago(30d)
+    | where ProcessCommandLine has_any (MaliciousStrings)
+    | extend EventType = "Process"
+),
+(
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where FolderPath contains ".node_modules" 
+       or FolderPath has "@vscode\\deviceid\\dist\\index.js"
+    | extend EventType = "File"
+)
+| project Timestamp, DeviceName, EventType, InitiatingProcessFileName, 
+          InitiatingProcessCommandLine, RemoteIP, RemotePort, FolderPath, FileName
+| order by Timestamp desc
+
+// =========================
+// 13. Timeline of Infection Chain
+// =========================
+let InfectedDevices = 
+    DeviceNetworkEvents
+    | where Timestamp > ago(30d)
+    | where RemoteIP in ("136.0.9.8", "23.27.202.27", "166.88.4.2", "23.27.20.143")
+    | distinct DeviceName;
+
+union
+(
+    DeviceNetworkEvents
+    | where DeviceName in (InfectedDevices)
+    | where Timestamp > ago(30d)
+    | extend Stage = "1-Network"
+),
+(
+    DeviceProcessEvents
+    | where DeviceName in (InfectedDevices)
+    | where Timestamp > ago(30d)
+    | extend Stage = "2-Process"
+),
+(
+    DeviceFileEvents
+    | where DeviceName in (InfectedDevices)
+    | where Timestamp > ago(30d)
+    | extend Stage = "3-File"
+)
+| project Timestamp, DeviceName, Stage, InitiatingProcessFileName, 
+          InitiatingProcessCommandLine, FolderPath, FileName, RemoteIP
+| order by DeviceName asc, Timestamp asc
+```
+
+Here are some more fast threat hunt queries to make for C2s, VSCode Inejction and Active Infection detections: 
+
+### Fast C2 Detection:
+
+`DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| where RemoteIP in ("136.0.9.8", "23.27.202.27", "166.88.4.2", "23.27.20.143")
+| summarize Count=count(), FirstSeen=min(Timestamp), LastSeen=max(Timestamp) by DeviceName, RemoteIP`
+
+### VSCode Injection Detection:
+
+`DeviceFileEvents
+| where Timestamp > ago(7d)
+| where FolderPath contains @"@vscode\deviceid\dist\index.js"
+| where ActionType == "FileModified"
+| project Timestamp, DeviceName, FolderPath, SHA256`
+
+### Active Infections:
+
+`DeviceNetworkEvents
+| where Timestamp > ago(24h)
+| where RemoteIP in ("136.0.9.8", "23.27.202.27", "166.88.4.2", "23.27.20.143")
+| distinct DeviceName`
