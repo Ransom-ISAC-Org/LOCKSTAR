@@ -1,4 +1,4 @@
-Credit: Ellis Stannard
+Author: Ellis Stannard
 
 Contributors: François-Julien Alcaraz, Nick Smart, Yashraj Solanki, Joshua Penny, Michael Minarovic
 
