@@ -6,4 +6,4 @@ Please take care with analysing the payload samples. Ransom-ISAC is not responsi
 
 Part1.zip password is "TxDataHiding_N0T_EtHeRhIdInG" 
 
-
+Part2.zip password can be provided on request. 
