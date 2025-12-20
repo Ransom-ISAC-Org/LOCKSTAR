@@ -455,7 +455,7 @@ Reference other sections clearly:
 Always link to detection resources:
 
 **Example:**
-> **GitHub Repository:** [https://github.com/Your-Org/Detection-Rules](https://github.com/Your-Org/Detection-Rules)
+> **GitHub Repository:** [https://github.com/Ransom-ISAC-Org/LOCKSTAR]([https://github.com/Your-Org/Detection-Rules](https://github.com/Ransom-ISAC-Org/LOCKSTAR))
 
 *Include links to any detection rules, scripts, or resources you've published alongside your research.*
 
