@@ -1,1 +1,1 @@
-Password is 'Infected'
+Password is 'infected'
