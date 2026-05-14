@@ -1,0 +1,114 @@
+The following pseudocode detection rules are designed for integration into SIEM/SOAR platforms (Sigma-compatible format). Adapt field names to your environment.
+
+**Detection 1: FortiGate Branded Password Authentication**
+
+```
+title: TheGentlemen FortiGate Branded VPN Password
+status: experimental
+logsource:
+  product: fortinet
+  service: sslvpn
+detection:
+  selection:
+    user: 'root'
+    action: 'tunnel-up'
+  condition: selection
+  # Cross-reference with known passwords: gentlemen25, Gentlemen25, gentle26
+  # FortiGate logs may not capture plaintext passwords —
+  # alert on any 'root' SSL VPN tunnel-up event as anomalous
+level: high
+```
+
+**Detection 2: Pre-Encryption Service Termination Pattern**
+
+```
+title: TheGentlemen Pre-Encryption Service Kill Chain
+status: experimental
+logsource:
+  product: linux
+  category: process_creation
+detection:
+  docker_stop:
+    CommandLine|contains: 'docker stop'
+  qemu_kill:
+    CommandLine|contains|any:
+      - 'pkill -9 qemu'
+      - 'pkill -9 -f qemu-system'
+  mysql_stop:
+    CommandLine|contains|any:
+      - 'systemctl stop mysql'
+      - 'systemctl stop mariadb'
+  condition: docker_stop or qemu_kill or mysql_stop
+  # High confidence when 2+ of these fire within 60 seconds on the same host
+level: critical
+```
+
+**Detection 3: G-BOT C2 Beacon Indicators**
+
+```
+title: TheGentlemen G-BOT C2 PID File and SOCKS Port
+status: experimental
+logsource:
+  product: linux
+  category: file_event
+detection:
+  pid_file:
+    TargetFilename: '/var/run/gbot_root.pid'
+  condition: pid_file
+level: critical
+---
+# Network-level: alert on internal hosts opening SOCKS listeners
+# on ports 30001, 30002, or other non-standard ports
+```
+
+**Detection 4: README-GENTLEMEN Ransom Note Creation**
+
+```
+title: TheGentlemen Ransom Note File Creation
+status: experimental
+logsource:
+  category: file_event
+detection:
+  selection:
+    TargetFilename|endswith|any:
+      - 'README-GENTLEMEN.txt'
+      - 'README-GENTLEMEN'
+  condition: selection
+level: critical
+```
+
+**Detection 5: Encrypted File Extension**
+
+```
+title: TheGentlemen Encrypted File Extension
+status: experimental
+logsource:
+  category: file_rename
+detection:
+  selection:
+    TargetFilename|endswith: '.i8p14s'
+  condition: selection
+  # Alert threshold: >10 renames within 60 seconds indicates active encryption
+level: critical
+```
+
+**Detection 6: SOCKS Proxy on Non-Standard Port with SMB Follow-On**
+
+```
+title: TheGentlemen Proxy-Chained SMB Enumeration
+status: experimental
+logsource:
+  category: network_connection
+detection:
+  socks_out:
+    DestinationPort|any:
+      - 36067
+      - 30001
+      - 30002
+  smb_sweep:
+    DestinationPort: 445
+  condition: socks_out | near smb_sweep
+  # Correlate: external SOCKS connection followed by rapid SMB
+  # connection attempts across /24 from the same source within 5 minutes
+level: high
+```
