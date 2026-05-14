@@ -1,0 +1,194 @@
+**YARA Rule — Gentlemen Locker Binary Strings
+
+```
+rule TheGentlemen_Locker_Linux {
+  meta:
+    description = "Detects TheGentlemen Linux/NAS locker binary strings"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    reference = "TheGentlemen Leak Analysis Report"
+  strings:
+    $note1 = "README-GENTLEMEN" ascii wide
+    $ext1 = ".i8p14s" ascii wide
+    $path1 = "/opt/updateamd" ascii wide
+    $pid1 = "gbot_root.pid" ascii wide
+    $flag1 = "--ultrafast" ascii
+    $flag2 = "--keep" ascii
+  condition:
+    uint32(0) == 0x464c457f and (any of ($note*, $ext*) or ($path1 and any of ($flag*)) or $pid1)
+}
+```
+
+**YARA Rule — Ransom Note Content Detection**
+
+```
+rule TheGentlemen_RansomNote_Content {
+  meta:
+    description = "Detects TheGentlemen ransom note by content strings"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    reference = "TheGentlemen Leak Analysis Report"
+    tlp = "TLP:AMBER"
+  strings:
+    $brand1 = "THE GENTLEMEN" ascii wide nocase
+    $brand2 = "README-GENTLEMEN" ascii wide
+    $tox_group = "F8E24C7F5B12CD69C44C73F438F65E9BF560ADF35EBBDF92CF9A9B84079F8F04060FF98D098E" ascii
+    $onion_dls = "tezwsse5czllksjb7cwp65rvnk4oobmzti2znn42i43bjdfd2prqqkad" ascii
+    $ext = ".i8p14s" ascii wide
+    $wallet1 = "1CgfAohwbTSYsyxPvphdcrcfSd1XE5C8Rr" ascii
+  condition:
+    2 of them
+}
+```
+
+**YARA Rule — G-BOT C2 Framework Artifacts**
+
+```
+rule TheGentlemen_GBOT_C2 {
+  meta:
+    description = "Detects G-BOT custom C2 framework artifacts"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+  strings:
+    $panel = "G-BOT Control Panel" ascii wide
+    $pid = "gbot_root.pid" ascii wide
+    $pid_path = "/var/run/gbot_root.pid" ascii wide
+    $socks_30001 = "30001" ascii
+    $socks_30002 = "30002" ascii
+  condition:
+    any of ($panel, $pid, $pid_path) or
+    (2 of ($socks_*) and filesize < 10MB)
+}
+```
+
+**YARA Rule — Mozilla NSS DLL Sideloading Set (Browser Credential Extraction)**
+
+```
+rule TheGentlemen_NSS_DLL_Sideload {
+  meta:
+    description = "Detects Mozilla NSS DLL sideloading set used for browser credential theft"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    severity = "high"
+  strings:
+    $dll1 = "freebl3.dll" ascii wide
+    $dll2 = "mozglue.dll" ascii wide
+    $dll3 = "nss3.dll" ascii wide
+    $dll4 = "softokn3.dll" ascii wide
+    $dll5 = "nspr4.dll" ascii wide
+    $dll6 = "plc4.dll" ascii wide
+    $dll7 = "plds4.dll" ascii wide
+    $tool1 = "XenAllPasswordPro" ascii wide
+    $tool2 = "XenAllPasswords" ascii wide
+  condition:
+    (4 of ($dll*)) or any of ($tool*)
+}
+```
+
+**YARA Rule — AV-Masquerading Payload DLLs**
+
+```
+rule TheGentlemen_AV_Masquerade_DLLs {
+  meta:
+    description = "Detects DLLs masquerading as game anti-cheat or AV products"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    severity = "critical"
+  strings:
+    $ea = "EAAntiCheat1.exe.dll" ascii wide
+    $val = "Valorant.exe.dll" ascii wide
+    $soph = "Sophos.exe.dll" ascii wide
+    $avast = "Avast.exe.dll" ascii wide
+  condition:
+    uint16(0) == 0x5A4D and any of them
+}
+```
+
+**YARA Rule — Pre-Encryption Kill Chain (Linux)**
+
+```
+rule TheGentlemen_PreEncryption_Linux {
+  meta:
+    description = "Detects pre-encryption bash script patterns"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    severity = "critical"
+  strings:
+    $docker = "docker stop $(docker ps -q)" ascii
+    $qemu1 = "pkill -9 qemu" ascii
+    $qemu2 = "pkill -9 -f \"qemu-system\"" ascii
+    $mysql = "grep -iE 'mysql|maria'" ascii
+    $locker_flag1 = "--ultrafast" ascii
+    $locker_flag2 = "--keep" ascii
+    $locker_path = "/opt/updateamd" ascii
+    $locker_pass = "--password" ascii
+  condition:
+    2 of ($docker, $qemu1, $qemu2, $mysql) or
+    ($locker_path and any of ($locker_flag*, $locker_pass))
+}
+```
+
+**YARA Rule — SetupGps2.exe Payload (Hash + Behavioural)**
+
+```
+rule TheGentlemen_SetupGps2 {
+  meta:
+    description = "Detects SetupGps2.exe payload (1/9 AV detection rate)"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+    hash_md5 = "bdfae4ff271414df8db7bfd255cf603e"
+    hash_sha1 = "fe06486c3f74b317d7ec5cc9be8915c34a07a68f"
+    hash_sha256 = "91017846dd71fbbfcd40f116aca8d4c66f51583cb26fa9a54de0e1f08c9cd40f"
+    severity = "critical"
+  strings:
+    $name = "SetupGps2" ascii wide
+  condition:
+    uint16(0) == 0x5A4D and
+    (filesize > 5000000 and filesize < 6000000 and $name)
+}
+```
+
+**YARA Rule — FOBOS Loader Toolkit Artifacts**
+
+```
+rule TheGentlemen_FOBOS_Toolkit {
+  meta:
+    description = "Detects FOBOS initial access loader toolkit artifacts"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+  strings:
+    $fobos = "FOBOSLOADER" ascii wide
+    $campaigns = "CAMPAIGNS+" ascii wide
+    $clearfix = "CLEARFIX" ascii wide
+    $htmlsmug = "HTMLSMUG" ascii wide
+    $smuggler = "BobTheSmuggler" ascii wide
+    $phemedrone = "Phemedrone" ascii wide
+  condition:
+    2 of them
+}
+```
+
+**YARA Rule — Gentlemen Infrastructure Indicators (Network IOCs in Files)**
+
+```
+rule TheGentlemen_Infra_IOCs {
+  meta:
+    description = "Detects TheGentlemen infrastructure IOCs in config/log files"
+    author = "Ransom-ISAC"
+    date = "2026-05-13"
+  strings:
+    $onion_rc = "xcsqtdobtmdhsjkyjz6iydfowh7bps5dd3a2xg53oirylnohednc4syd" ascii
+    $onion_dls = "tezwsse5czllksjb7cwp65rvnk4oobmzti2znn42i43bjdfd2prqqkad" ascii
+    $onion_proxy = "nsocks4pvtcewb2ora3zk47ksx7dvazbxyhzp4myhegpthgkphpi7aad" ascii
+    $socks_ip = "91.245.35.22" ascii
+    $tox_group = "F8E24C7F5B12CD69C44C73F438F65E9BF560ADF35EBBDF92CF9A9B84079F8F04060FF98D098E" ascii
+    $tox_leaker = "7862AE03A73AAC2994A61DF1F635347F2D1731A77CACC155594C6B681D201F7AD6817AD3AB0A" ascii
+    $email1 = "nasbull@proton.me" ascii
+    $btc1 = "1CgfAohwbTSYsyxPvphdcrcfSd1XE5C8Rr" ascii
+    $btc2 = "bc1qgl29fwvpaky7vr94qwufeq56d00l5h60fe7utx" ascii
+    $vpn_pass1 = "gentlemen25" ascii nocase
+    $vpn_pass2 = "gentle26" ascii
+  condition:
+    any of them
+}
+```
